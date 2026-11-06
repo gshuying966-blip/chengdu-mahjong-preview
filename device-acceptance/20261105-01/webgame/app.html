@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>血战到底 · XueZhan Mahjong</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="stylesheet" href="style.css">
+
+<!-- PWA / "Add to Home Screen" -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#155234">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="血战到底">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<div id="bootSplash">
+  <div class="spinner"></div>
+  <div id="bootText">加载中…</div>
+  <div style="font-size:12.5px; opacity:.75; max-width:320px">联网加载约14 MB的固定版Python运行时，麻将和AI在本浏览器计算，不需要电脑在线。本版暂不保证断网后重新打开。</div>
+  <button id="bootRetry" class="secondary hidden" onclick="location.reload()">刷新重试</button>
+</div>
+
+<header>
+  <button id="menuBtn" class="secondary mobile-only" aria-haspopup="dialog">菜单</button>
+  <div id="mobileStatus" class="mobile-only" aria-live="polite"></div>
+  <h1>血战到底</h1>
+  <label>对手:
+    <select id="aiSel">
+      <option value="initial">初始策略 (7attr)</option>
+      <option value="advanced">高级策略 (strategyz)</option>
+      <option value="defensive">防守策略 (strategyz+防点炮)</option>
+    </select></label>
+  <label>速度:
+    <select id="speedSel">
+      <option value="10000">很慢 (10秒/步)</option>
+      <option value="5000" selected>慢 (5秒/步)</option>
+      <option value="1000">正常</option>
+      <option value="300">快</option>
+      <option value="0">即时</option>
+    </select></label>
+  <label class="coach-toggle"><input type="checkbox" id="coachChk"> 教练模式</label>
+  <span class="spacer"></span>
+  <span id="dfncyBox" class="badge"></span>
+  <button id="sndBtn" class="secondary" style="padding:7px 10px"></button>
+  <button id="rulesBtn" class="secondary" onclick="document.getElementById('rulesOverlay').classList.remove('hidden')">规则说明</button>
+  <button id="hintBtn" class="secondary">提示 Hint</button>
+  <button id="newBtn">新开一局 New game</button>
+</header>
+
+<div id="errorBox" class="hidden" role="alert"></div>
+<details id="exchangeMemory" open><summary>本局换牌记录 · 个人已知</summary><p id="exchangeInfo" class="exchange-info"></p></details>
+<div id="layout">
+  <div id="tableArea">
+    <div class="seat" id="seat2"></div>
+    <div class="seat" id="seat3"></div>
+    <div id="center">
+      <div id="nowBar"></div>
+      <div id="wall"></div>
+      <div id="discards"></div>
+    </div>
+    <div class="seat" id="seat1"></div>
+    <div class="seat" id="seat0">
+      <div class="name" id="myName"></div>
+      <div class="tilerow" id="myPile"></div>
+      <div id="myhand"></div>
+      <div id="actionbar"><span id="prompt"></span><span id="buttons"></span><button id="discardConfirm" class="mobile-only" disabled>先选一张牌</button></div>
+      <section id="handMathSection" class="hand-math">
+        <h3>手牌数学 · 先看确定结果</h3>
+        <button id="handMathBtn" class="secondary" disabled>计算手牌与弃牌比较</button>
+        <div id="handMathResults" aria-live="polite"><p>轮到你作决定时，可计算合法牌型、待牌与基础未见张数。</p></div>
+      </section>
+      <div id="hintPanel"></div>
+      <div id="hintDetail"></div>
+      <div id="coachBox"></div>
+    </div>
+  </div>
+  <div id="log"></div>
+</div>
+
+<div id="mobileDrawer" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+  <section class="panel mobile-panel">
+    <div class="panel-head"><h2 id="drawerTitle">菜单</h2><button id="drawerClose" class="secondary">回牌桌</button></div>
+    <div id="drawerMenu" class="drawer-page">
+      <div id="controlsDock"></div>
+      <div class="menu-grid"><button data-drawer="history">操作记录</button><button data-drawer="public">四家公开信息</button><button data-drawer="teach">教学分析</button><button id="showResults" disabled>结算与复盘</button></div>
+      <p id="entryInfo" class="entry-info"></p>
+    </div>
+    <div id="drawerHistory" class="drawer-page hidden"></div>
+    <div id="drawerTeach" class="drawer-page hidden"><p class="drawer-note">A为确定牌型，B为信息边界，C为经验建议；危险度不是点炮概率。</p></div>
+    <div id="drawerPublic" class="drawer-page hidden"><p class="drawer-note">只展示四家的定缺、得分、公开副露与暗牌张数。</p><div id="publicInfo"></div></div>
+  </section>
+</div>
+
+<div class="overlay hidden" id="rulesOverlay">
+  <div class="panel wide">
+    <h2>玩法与计分规则</h2>
+    <div class="rules">
+      <h3>玩法 — 血战到底（四川麻将，无字牌）</h3>
+      <ul>
+        <li>只有条、万、筒，共108张。庄家起手14张，其他人13张；新局可选换同花色三张后定缺，或不换直接定缺。只能碰杠胡，不能吃。</li>
+        <li><b>定缺</b>：开局需选择一门花色作为"缺"，整局必须把这门花色的牌全部打光，胡牌时手上不能再有它。</li>
+        <li><b>目标</b>：凑成 4 组顺子/刻子 + 1 对将牌即可胡牌；也可七对、金钩钓、清一色、碰碰胡等特殊牌型。</li>
+        <li><b>血战到底</b>：一人胡牌后其他人继续打，直到 3 人胡牌或牌墙摸完，一局才结束（不同于胡了就停的打法）。</li>
+        <li>每回合：摸牌 → 检查自摸/暗杠/加杠 → 打牌 → 其他家检查碰/杠/胡。杠牌后要补摸一张。</li>
+        <li><b>抢杠胡</b>：别人加杠时，如果这张牌正好让你胡牌，可以抢先胡走。</li>
+      </ul>
+      <h3>计分 — 番数与支付</h3>
+      <ul>
+        <li>基础 1 番 = 1 分（普通「平胡」）。以下加成可叠加相乘：
+          自摸 ×2 · 杠上花/杠上炮 ×2 · 抢杠胡 ×2 · 碰碰胡 ×2 · 七对 ×4 · 金钩钓 ×4 · 清一色 ×4 ·
+          每有一「根」(暗杠或杠成的 4 张同牌) ×2。天胡/地胡固定 32 番。</li>
+        <li><b>点炮</b>：点炮者一人赔付番数分给胡牌者。</li>
+        <li><b>自摸</b>：仍在局的其他玩家各赔付番数分；已经胡牌退出者不再支付。</li>
+        <li><b>杠</b>：暗杠由仍在局的其他玩家各付2分；明杠由放杠者付2分；加杠成功后由仍在局的其他玩家各付1分。本版暗杠牌面公开。</li>
+        <li><b>呼叫转移</b>：杠后打出的牌被别人胡走（杠上炮），这个杠的收入转给胡牌者。</li>
+        <li><b>退税</b>：流局时，杠过牌但最终未听牌的玩家要退还杠分。</li>
+        <li><b>查大叫</b>：流局时，听牌的玩家按自己能胡的最大番数向未听牌的玩家收分。</li>
+        <li><b>查花猪</b>：原引擎按每个非花猪玩家收16分；听牌者还收其最大可胡牌分。属于本版继承规则，具体成都桌规可能不同。</li>
+        <li><b>当前限制</b>：过手胡限制尚未实现；一炮多响已支持；番型未设置封顶。天胡仅限庄家首次出牌前合法自摸；地胡按已冻结的开局事件资格判断，碰杠等打断后不恢复。完整差异见项目规则清单。</li>
+        <li><b>教学说明</b>：危险度、威胁等级均为未经校准的启发式评分；有效牌数含对手暗牌中的未见牌，不能当作摸到概率。旧dfncy仅作参考；严格听牌、待牌和未见数请看“手牌数学”。</li>
+      </ul>
+    </div>
+    <div class="row"><button class="secondary" onclick="document.getElementById('rulesOverlay').classList.add('hidden')">我知道了</button></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="newGameOverlay" role="dialog" aria-modal="true" aria-labelledby="newGameTitle">
+  <div class="panel">
+    <h2 id="newGameTitle">新开一局</h2>
+    <label class="opening-choice" for="openingMode">选择下一局玩法
+      <select id="openingMode"><option value="true">换三张，然后定缺（默认）</option><option value="false">不换三张，直接定缺</option></select>
+    </label>
+    <p>确认后本局规则固定。更改这里的选择不会改变正在进行的牌局。</p>
+    <div class="row"><button id="startGameBtn">确认开局</button><button id="cancelNewGame" class="secondary">返回当前局</button></div>
+  </div>
+</div>
+<div class="overlay hidden" id="exchangeOverlay">
+  <div class="panel wide">
+    <h2>换三张 — 请选择同一花色的三张牌</h2>
+    <p id="exchangeDirection"></p>
+    <p>四人全部提交后统一交换，交换完成再定缺。</p>
+    <div id="exchangeHand" class="tilerow"></div>
+    <p id="exchangeStatus" aria-live="polite"></p>
+    <div class="row"><button id="exchangeSuggest" class="secondary">采用启发式建议</button><button id="exchangeConfirm" disabled>确认换三张</button></div>
+  </div>
+</div>
+<div class="overlay hidden" id="daqueOverlay">
+  <div class="panel">
+    <h2>定缺 — 选择一门要打缺的花色</h2>
+    <p style="font-size:13.5px; opacity:.85">整局中你必须先打光这门花色，胡牌时手中不能有它。</p>
+    <div class="row" id="daqueButtons"></div>
+    <p id="daqueHint" style="font-size:13px; color:#ffd964"></p>
+    <div id="daqueHandPreview" class="mobile-only tilerow" aria-label="你的手牌"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overOverlay">
+  <div class="panel wide">
+    <button class="secondary result-close" onclick="document.getElementById('overOverlay').classList.add('hidden')">返回牌桌</button>
+    <h2>本局结束</h2>
+    <div id="finalScores"></div>
+    <div id="settleBox"></div>
+    <div id="reviewBox"></div>
+    <div class="row"><button onclick="newGame()">再来一局</button>
+    <button class="secondary" onclick="document.getElementById('overOverlay').classList.add('hidden')">看牌桌</button></div>
+  </div>
+</div>
+
+<div id="rotateOverlay">
+  <div class="icon">📱</div>
+  <p>请将手机横屏游玩<br>
+  <span style="font-size:12.5px;opacity:.8">Please rotate your phone to landscape</span></p>
+  <button class="skip" onclick="document.body.classList.add('force-portrait')">仍要以竖屏继续 / Continue in portrait</button>
+</div>
+
+<script src="transport_pyodide.js" integrity="sha256-Xn/LFpmF1ZlXABLri6XCEI63buDGHV8sIwP8TmUdb/M="></script>
+<script src="game.js" integrity="sha256-vbnoAs4F/uTSArsSnxG96HABRvO2CdlkvotDt2d2B8g="></script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(err => console.warn('SW register failed', err));
+  });
+}
+</script>
+</body>
+</html>
