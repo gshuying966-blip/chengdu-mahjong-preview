@@ -1,0 +1,815 @@
+'''Pure game-session logic: no HTTP, no threading, no filesystem beyond the
+   divergence log. Shared by server.py (desktop http.server) and
+   pwa_bridge.py (in-browser Pyodide) so both transports run identical
+   game logic — never duplicate GameSession between them.
+'''
+import json
+import os
+import random
+import sys
+import time
+import traceback
+import uuid
+from collections import Counter
+from copy import deepcopy
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+sys.path.insert(0, _ROOT)
+
+from xzdealer import MahjongDealer as Dealer
+from xzplayer import MahjongPlayer as Player
+from xzround import MahjongRound as Round
+from xzjudger import MahjongJudger as Judger
+import utils.xzscore as score
+import utils.daque as dq
+import strategy_initial21_7attr as strategy_initial
+from dfncy.block_dfncy import dfncy
+
+STRATEGIES = {'initial': strategy_initial}
+try:
+    # Optional advanced strategy, included in this upstream revision.
+    import strategyz0614 as strategy_advanced
+    STRATEGIES['advanced'] = strategy_advanced
+except ImportError:
+    strategy_advanced = None
+try:
+    #defense layer over the best available base strategy
+    import strategy_defense
+    STRATEGIES['defensive'] = strategy_defense
+except ImportError:
+    strategy_defense = None
+try:
+    #strategyz with a more decline-prone hu decision (oracle-motivated)
+    import strategy_huev
+    STRATEGIES['huev'] = strategy_huev
+except ImportError:
+    strategy_huev = None
+DIVERGENCE_LOG = os.path.join(_HERE, 'divergence_log.jsonl')
+
+
+def _unique(tiles):
+    out = []
+    for t in tiles:
+        if t not in out:
+            out.append(t)
+    return out
+
+
+def _settlement(p):
+    '''Itemized score movements of one player, from the engine ledgers.
+       The amounts sum exactly to p.myscore.'''
+    rows = []
+    for rec in p.scoreRecords:
+        others = rec[1] if isinstance(rec[1], list) else [rec[1]]
+        rows.append({'kind': rec[0], 'others': others, 'fan': rec[2],
+                     'amount': rec[-1] * len(others)})
+    for row in p.kongScore:
+        amt = row[2]
+        tags = [x for x in row[3:] if isinstance(x, str)]
+        if 'hujiaozhuanyi_income' in tags:
+            rows.append({'kind': 'zhuanyi_in', 'others': [row[1]],
+                         'tile': row[0], 'amount': amt})
+            continue
+        rows.append({'kind': 'kong', 'others': [row[1]],
+                     'tile': row[0], 'amount': amt})
+        for tag in tags:
+            if tag == 'beihujiaozhuanyi':
+                rows.append({'kind': 'zhuanyi_out', 'others': [row[1]],
+                             'tile': row[0], 'amount': -amt})
+            elif tag == 'beituishui':
+                rows.append({'kind': 'tuishui_out', 'others': [row[1]],
+                             'tile': row[0], 'amount': -amt})
+            elif tag == 'tuishui_return':
+                rows.append({'kind': 'tuishui_back', 'others': [row[1]],
+                             'tile': row[0], 'amount': -amt})
+    return rows
+
+
+def project_public_table(history, table, pending_rob=None, pending_hu=None):
+    '''Read-only physical ownership derived exclusively from public actions.
+
+    A hu references one discard; zimo and robbed added-kong tiles are separate
+    physical table entries. Never infer a future response or read hidden hands.
+    '''
+    discards, wins, physical = [], [], []
+    attempt, robbed = None, {}
+    valid = True
+    for index, event in enumerate(history):
+        seat, kind = event[:2]
+        if kind == 'discard':
+            row = {'id': 'd%d' % index, 'event_index': index, 'seat': seat,
+                   'tile': list(event[2]), 'status': 'river', 'claims': [],
+                   'resolving': False}
+            discards.append(row)
+            physical.append(row)
+        elif kind in ('pong', 'kong', 'hu'):
+            row = discards[-1] if discards else None
+            if row is None or row['tile'] != event[2] or row['status'] in ('pong', 'kong'):
+                valid = False
+                continue
+            if kind == 'hu' and row['seat'] != event[3]:
+                valid = False
+                continue
+            row['status'] = kind
+            row['claims'].append(seat)
+        elif kind == 'jiakong':
+            attempt = index
+        elif kind == 'zimo':
+            row = {'id': 'w%d' % index, 'event_index': index, 'kind': kind,
+                   'seat': seat, 'tile': list(event[2]), 'claims': [seat], 'resolving': False}
+            wins.append(row)
+            physical.append(row)
+        elif kind == 'robkong':
+            if attempt not in robbed:
+                row = {'id': 'k%s' % attempt, 'event_index': index, 'kind': kind,
+                       'seat': event[3], 'tile': list(event[2]), 'claims': [], 'resolving': False}
+                robbed[attempt] = row
+                wins.append(row)
+                physical.append(row)
+            robbed[attempt]['claims'].append(seat)
+    # The engine moves a robbed tile on the FIRST acceptance, but writes final
+    # hu events only after ALL responses. Publish only already accepted claims.
+    if pending_rob:
+        row = {'id': 'k%s' % attempt, 'kind': 'robkong', 'seat': pending_rob['seat'],
+               'tile': list(pending_rob['tile']), 'claims': list(pending_rob['claims']), 'resolving': True}
+        wins.append(row)
+        physical.append(row)
+    if pending_hu and discards:
+        row = discards[-1]
+        valid = valid and row['tile'] == pending_hu['tile'] and row['seat'] == pending_hu['seat']
+        row.update(status='hu', claims=list(pending_hu['claims']), resolving=True)
+    tiles = [r['tile'] for r in physical if r.get('status') not in ('pong', 'kong')]
+    return deepcopy({'version': 'public-table-v1', 'discards': discards, 'winning_tiles': wins,
+                     'latest_discard': discards[-1]['id'] if discards else None,
+                     'physical_tiles': tiles, 'consistent': valid and tiles == table})
+
+
+class GameSession(object):
+    '''One game. `human` is the seat index of the human player (None = all AI,
+       used for benchmarking). `strategies` is a list of 4 strategy names, or
+       use `ai` as the single name for every AI seat.'''
+
+    def __init__(self, seed=None, ai='initial', strategies=None, human=0,
+                 exchange_direction=None, exchange_enabled=True):
+        if type(exchange_enabled) is not bool:
+            raise ValueError('exchange_enabled必须为布尔值')
+        self._exchange_enabled = exchange_enabled
+        self.seed = seed
+        self.rng = random.Random(seed)
+        if human is not None and (type(human) is not int or human not in range(4)):
+            raise ValueError('无效的玩家座位')
+        if exchange_direction not in (None, 'left', 'right', 'across'):
+            raise ValueError('换牌方向必须为 left、right 或 across')
+        if strategies is None:
+            strategies = [ai if ai in STRATEGIES else 'initial'] * 4
+        self.strategy_names = strategies
+        self.strats = [STRATEGIES.get(s, strategy_initial) for s in strategies]
+        self.human = human
+        self.game_id = uuid.uuid4().hex[:8]
+
+        self.dealer = Dealer(rng=self.rng)
+        self.players = [Player(i) for i in range(4)]
+        self.judger = Judger()
+        self.round = Round(self.judger, self.dealer, 4)
+        for p in self.players:
+            self.dealer.deal_cards(p, 13)
+        self.dealer.deal_cards(self.players[0], 1, record=False)
+
+        self.pending = None
+        self.error = None
+        self.finalized = False
+        self.decisions = []  # divergence records for this game
+
+        self.exchange_direction = (exchange_direction or self.rng.choice(['left', 'right', 'across'])) if exchange_enabled else None
+        self._exchange_choices = {}
+        self._exchange_records = {}
+        self.daque_suggestion = None
+        self.stage = 'choose_exchange'
+        if not exchange_enabled:
+            self._prepare_daque()
+            return
+        # Commit every AI choice against the initial hands. No cards move until
+        # all four choices have been validated; no opponent choice is published.
+        for p in self.players:
+            if p.player_id != human:
+                self._exchange_choices[p.player_id] = self.choose_exchange(p.hand)
+        if human is None:
+            self._finish_exchange()
+
+    @property
+    def exchange_enabled(self):
+        return self._exchange_enabled
+
+    @property
+    def rules(self):
+        return {'version': 'p04-opening-v1', 'exchange_enabled': self.exchange_enabled}
+
+    @staticmethod
+    def choose_exchange(hand):
+        '''Deterministic legal baseline: give three from the shortest eligible
+        suit, preferring isolated tiles. This is a heuristic, not an optimum.'''
+        suits = [[t for t in hand if t[0] == c] for c in range(3)]
+        eligible = [ts for ts in suits if len(ts) >= 3]
+        if not eligible:
+            raise ValueError('没有可换出的同花色三张牌')
+        tiles = min(eligible, key=lambda ts: (len(ts), ts[0][0]))
+        ranked = sorted(tiles, key=lambda t: (
+            sum(1 for x in tiles if x == t or 0 < abs(x[1] - t[1]) <= 2), t[1]))
+        return deepcopy(ranked[:3])
+
+    def _finish_exchange(self):
+        if self.stage != 'choose_exchange' or len(self._exchange_choices) != 4:
+            raise ValueError('四人尚未全部提交换牌')
+        offset = {'left': 1, 'right': -1, 'across': 2}[self.exchange_direction]
+        new_hands = [deepcopy(p.hand) for p in self.players]
+        records = {}
+        # Remove all choices before adding any received cards (atomic exchange).
+        for seat, tiles in self._exchange_choices.items():
+            self._validate_exchange(self.players[seat].hand, tiles)
+            for t in tiles:
+                new_hands[seat].remove(t)
+        for seat, tiles in self._exchange_choices.items():
+            recipient = (seat + offset) % 4
+            new_hands[recipient].extend(deepcopy(tiles))
+            records[seat] = {'sent': deepcopy(tiles),
+                             'received': deepcopy(self._exchange_choices[(seat - offset) % 4]),
+                             'to': recipient, 'from': (seat - offset) % 4,
+                             'direction': self.exchange_direction}
+        for p, hand in zip(self.players, new_hands):
+            p.hand = hand
+        self._exchange_records = records
+        self._exchange_choices = {}
+        self._prepare_daque()
+
+    def _prepare_daque(self):
+        '''Shared transition after a real exchange OR a configured skip.'''
+        for p in self.players:
+            if p.player_id != self.human:
+                p.get_daque_color()
+        seat = self.human if self.human is not None else 0
+        self.daque_suggestion = dq.daquex(self.players[seat].hand)
+        self.stage = 'choose_daque'
+        if self.human is None:
+            self.start_play(self.daque_suggestion)
+
+    @staticmethod
+    def _validate_exchange(hand, tiles):
+        if not isinstance(tiles, list) or len(tiles) != 3 or any(
+                not isinstance(t, list) or len(t) != 2 or
+                type(t[0]) is not int or type(t[1]) is not int or
+                t[0] not in range(3) or t[1] not in range(1, 10) for t in tiles):
+            raise ValueError('请选择三张有效的牌')
+        if len({t[0] for t in tiles}) != 1:
+            raise ValueError('换出的三张牌必须属于同一花色')
+        if Counter(map(tuple, tiles)) - Counter(map(tuple, hand)):
+            raise ValueError('换出的牌数量超过你手中持有的数量')
+
+    # ------------------------------------------------------------- engine
+    def start_play(self, color):
+        if self.stage != 'choose_daque':
+            raise ValueError('当前不在定缺阶段；换牌模式须先完成换三张')
+        if type(color) is not int or color not in (0, 1, 2):
+            raise ValueError('无效的定缺花色')
+        self.players[self.human if self.human is not None else 0].daque_color = color
+        self.dealer.dqc = [p.daque_color for p in self.players]
+        self.stage = 'play'
+
+    def step_once(self):
+        '''Advance the engine by one action. Returns True if a step was taken;
+           False when waiting for the human or the game is over.'''
+        if self.stage != 'play':
+            return False
+        if self.round.is_over or self.round.valid_act is None:
+            self._finalize()
+            return False
+        va = self.round.valid_act
+        cur = self.round.current_player
+        if cur == self.human and va != 'self_check':
+            if self.pending is None:
+                self.pending = self._human_pending(va)
+            return False
+        try:
+            action = self._auto_action(va, cur)
+            self.round.proceed_round(self.players, action)
+        except Exception:
+            traceback.print_exc()
+            self.error = '引擎运行失败，本局已中止，请查看本地服务日志后重新开局。'
+            self.round.is_over = True
+        if self.round.is_over:
+            self._finalize()
+        return True
+
+    def advance(self):
+        while self.step_once():
+            pass
+
+    def _auto_action(self, va, cur):
+        p = self.players[cur]
+        strat = self.strats[cur]
+        if va == 'self_check':
+            return 'self_check'
+        if va == 'zimo':
+            return strat.check_zimo(p, self.dealer, self.round.last_drawn_card, self.players)
+        if va == 'hu':
+            return strat.check_hu(p, self.dealer, self.round.player_before_act, self.players)
+        if va == 'robkong':
+            return strat.check_robkong(p, self.dealer, self.round.jiakong_card, self.players)
+        if va == 'pong':
+            return strat.check_pong(p, self.dealer, self.players)
+        if va == 'kong':
+            return strat.check_kong(p, self.dealer, self.players)
+        if va == 'zikong':
+            return strat.check_zikong(p, self.dealer, self.players)
+        return strat.select_a_card_to_discard(p, self.dealer, self.players)
+
+    def _human_pending(self, va):
+        p = self.players[self.human]
+        if va == 'discard':
+            dc = p.daque_color
+            daque_tiles = [t for t in p.hand if t[0] == dc]
+            allowed = daque_tiles if daque_tiles else list(p.hand)
+            return {'type': 'discard', 'valid_act': va,
+                    'prompt': '请打出一张缺色牌' if daque_tiles else '请选择要打出的牌',
+                    'allowed': allowed}
+        if va == 'zikong':
+            dc = p.daque_color
+            options = []
+            for c in p.ankong_list():
+                if c[0] != dc:
+                    options.append({'action': ['ankong', c], 'label': 'ankong', 'tile': c})
+            for c in p.jiakong_list():
+                options.append({'action': ['jiakong', c], 'label': 'jiakong', 'tile': c})
+            options.append({'action': ['stand', 'zikong'], 'label': 'pass'})
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以杠',
+                    'options': options}
+        table = self.dealer.table
+        last = table[-1] if table else None
+        if va == 'pong':
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以碰', 'tile': last,
+                    'options': [{'action': 'pong', 'label': 'pong', 'tile': last},
+                                {'action': 'stand', 'label': 'pass'}]}
+        if va == 'kong':
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以杠/碰', 'tile': last,
+                    'options': [{'action': 'kong', 'label': 'kong', 'tile': last},
+                                {'action': 'pong', 'label': 'pong', 'tile': last},
+                                {'action': 'stand', 'label': 'pass'}]}
+        if va == 'hu':
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以胡', 'tile': last,
+                    'options': [{'action': 'hu', 'label': 'hu', 'tile': last},
+                                {'action': 'stand', 'label': 'pass'}]}
+        if va == 'zimo':
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以自摸',
+                    'tile': self.round.last_drawn_card,
+                    'options': [{'action': 'zimo', 'label': 'zimo'},
+                                {'action': 'stand', 'label': 'pass'}]}
+        if va == 'robkong':
+            return {'type': 'choice', 'valid_act': va, 'prompt': '可以抢杠',
+                    'tile': self.round.jiakong_card,
+                    'options': [{'action': 'robkong', 'label': 'robkong'},
+                                {'action': 'stand', 'label': 'pass'}]}
+        return {'type': 'choice', 'valid_act': va, 'prompt': str(va),
+                'options': [{'action': 'stand', 'label': 'pass'}]}
+
+    def _finalize(self):
+        if self.round.is_over and not self.finalized:
+            if not self.error and len(self.dealer.deck) == 0 and len(self.round.winners) < 3:
+                score.update_finalScore(self.dealer, self.players)
+            self.finalized = True
+            self.stage = 'over'
+            self.pending = None
+
+    # -------------------------------------------------------- divergence
+    def _log_decision(self, valid_act, human_action, ai_action):
+        rec = {
+            'rules': self.rules,
+            'exchange_occurred': bool(self._exchange_records),
+            'ts': round(time.time(), 3),
+            'game': self.game_id,
+            'seed': self.seed,
+            'ai': self.strategy_names[self.human] if self.human is not None else None,
+            'n_history': len(self.dealer.act_history),
+            'valid_act': valid_act,
+            'human': human_action,
+            'strategy': ai_action,
+            'agree': (Counter(map(tuple, human_action)) == Counter(map(tuple, ai_action))
+                      if valid_act == 'exchange'
+                      else json.dumps(human_action) == json.dumps(ai_action)),
+            'comparison_version': ('exchange-multiset-v1' if valid_act == 'exchange'
+                                   else 'ordered-json-v1'),
+            'deficiency': self._deficiency(self.players[self.human]),
+        }
+        if valid_act == 'exchange':
+            rec['exchange'] = deepcopy(self._exchange_records[self.human])
+        self.decisions.append(rec)
+        try:
+            with open(DIVERGENCE_LOG, 'a') as f:
+                f.write(json.dumps(rec) + '\n')
+        except OSError:
+            traceback.print_exc()
+
+    # -------------------------------------------------------------- human
+    def human_act(self, payload):
+        if not isinstance(payload, dict) or self.human is None:
+            raise ValueError('无效的玩家操作')
+        if 'exchange_enabled' in payload or 'rules' in payload:
+            raise ValueError('本局规则已冻结，只能在新开局时选择')
+        kind = payload.get('type')
+        if kind == 'exchange':
+            if self.stage != 'choose_exchange':
+                raise ValueError('当前不是换三张阶段')
+            tiles = payload.get('tiles')
+            self._validate_exchange(self.players[self.human].hand, tiles)
+            suggestion = self.choose_exchange(self.players[self.human].hand)
+            self._exchange_choices[self.human] = deepcopy(tiles)
+            self._finish_exchange()
+            self._log_decision('exchange', tiles, suggestion)
+            return
+        if kind == 'daque':
+            if self.stage != 'choose_daque':
+                raise ValueError('not choosing daque now')
+            color = payload.get('color')
+            if type(color) is not int or color not in (0, 1, 2):
+                raise ValueError('bad color')
+            self._log_decision('daque', color, self.daque_suggestion)
+            self.start_play(color)
+            return
+        if self.stage != 'play' or self.pending is None:
+            raise ValueError('no decision pending')
+        if kind == 'discard':
+            if self.pending['type'] != 'discard':
+                raise ValueError('not a discard decision')
+            tile = payload.get('tile')
+            if not (isinstance(tile, list) and len(tile) == 2 and all(type(x) is int for x in tile)):
+                raise ValueError('bad tile')
+            if tile not in self.pending['allowed']:
+                raise ValueError('tile not allowed')
+            action = tile
+        elif kind == 'action':
+            if self.pending['type'] != 'choice':
+                raise ValueError('当前需要出牌，不能执行碰杠胡或吃牌操作')
+            action = payload.get('action')
+            if action not in [o['action'] for o in self.pending['options']]:
+                raise ValueError('action not offered')
+        else:
+            raise ValueError('bad request type')
+
+        try:
+            ai_action = self.hint()['action']
+        except Exception:
+            traceback.print_exc()
+            ai_action = None
+        self._log_decision(self.pending['valid_act'], action, ai_action)
+        self.pending = None
+        self.round.proceed_round(self.players, action)
+        if self.round.is_over:
+            self._finalize()
+
+    def hint(self):
+        '''What the AI strategy would do in the human's place, plus a
+           human-readable reason and a public-info read of each opponent
+           (rendered by the UI's coach mode).'''
+        if self.pending is None:
+            return None
+        p = self.players[self.human]
+        strat = self.strats[self.human]
+        va = self.pending['valid_act']
+        if va == 'discard':
+            out = {'action': strat.select_a_card_to_discard(p, self.dealer, self.players)}
+            try:
+                out.update(self._hint_table())
+            except Exception:
+                traceback.print_exc()
+        elif va == 'pong':
+            out = {'action': strat.check_pong(p, self.dealer, self.players)}
+        elif va == 'kong':
+            out = {'action': strat.check_kong(p, self.dealer, self.players)}
+        elif va == 'zikong':
+            out = {'action': strat.check_zikong(p, self.dealer, self.players)}
+        elif va == 'hu':
+            out = {'action': strat.check_hu(p, self.dealer, self.round.player_before_act, self.players)}
+        elif va == 'zimo':
+            out = {'action': strat.check_zimo(p, self.dealer, self.round.last_drawn_card, self.players)}
+        elif va == 'robkong':
+            out = {'action': strat.check_robkong(p, self.dealer, self.round.jiakong_card, self.players)}
+        else:
+            out = {'action': va}
+        if va != 'discard':
+            try:
+                out['why'] = self._explain_choice(va, out['action'])
+            except Exception:
+                traceback.print_exc()
+        try:
+            out['opps'] = self._opponent_read()
+        except Exception:
+            traceback.print_exc()
+        out['risk_model'] = {'kind': 'heuristic', 'calibrated': False}
+        out['rules'] = self.rules
+        out['exchange_occurred'] = bool(self._exchange_records)
+        return out
+
+    def _explain_choice(self, va, action):
+        '''One-line reason for the strategy's non-discard choice, computed
+           from the same measures the strategies optimize (deficiency
+           before/after, kong income) — not canned text where numbers help.'''
+        p = self.players[self.human]
+        dc = p.daque_color
+        KB = p.kgbase(self.dealer, self.players)
+        Pg = [x[0] for x in p.pile]
+        H = sorted(p.hand, key=lambda t: (t[0], t[1]))
+        declined = action == 'stand' or (isinstance(action, list) and action[0] == 'stand')
+
+        def best_after_meld(tile, n_remove):
+            #deficiency after claiming `tile` into a new meld; a pong leaves
+            #3k+2 tiles, so also pick the best follow-up discard
+            T = H[:]
+            for _ in range(n_remove):
+                T.remove(tile)
+            Pg2 = Pg + [tile]   # Pg holds each meld's first tile
+            if len(T) % 3 == 1:
+                return dfncy(T, Pg2, KB, dc)
+            best = None
+            for x in _unique(T):
+                TX = T[:]
+                TX.remove(x)
+                d = dfncy(TX, Pg2, KB, dc)
+                if best is None or d < best:
+                    best = d
+            return best
+
+        if va in ('hu', 'zimo', 'robkong'):
+            if declined:
+                return ('现有启发式策略选择过胡，尝试更大番型或自摸；'
+                        '尚未验证这次过胡的真实期望收益')
+            lbl = {'hu': '胡牌', 'zimo': '自摸（番数×2）',
+                   'robkong': '抢杠胡（番数×2）'}[va]
+            return '策略选择立即%s，落袋为安' % lbl
+        if va == 'pong':
+            cur = dfncy(H, Pg, KB, dc)
+            after = best_after_meld(self.dealer.table[-1], 2)
+            s = '碰后缺张数 %s（当前 %s）' % (after, cur)
+            if declined:
+                return s + '；碰会拆掉手牌结构或减少进张，策略选择过'
+            return s + ('；碰能直接推进缺张数' if after < cur
+                        else '；碰不退缺张数，还多一次出牌机会')
+        if va == 'kong':
+            cur = dfncy(H, Pg, KB, dc)
+            t = self.dealer.table[-1]
+            s = ('明杠立得2分、算一根（番数×2）并补摸一张，杠后缺张数 %s；'
+                 '碰后缺张数 %s（当前 %s）'
+                 % (best_after_meld(t, 3), best_after_meld(t, 2), cur))
+            if declined:
+                return s + '；策略认为都不如保留手型，选择过'
+            return s + ('；策略选择杠' if action == 'kong' else '；策略选择只碰')
+        if va == 'zikong':
+            if declined:
+                return '暗杠/加杠会锁死这组牌、失去改张灵活性；策略选择过'
+            if isinstance(action, list) and action[0] == 'ankong':
+                n = sum(not q.winning and q.player_id != p.player_id for q in self.players)
+                return '暗杠由仍在局的%s家各付2分，共%s分，并补摸一张；后续仍有点炮和退税风险' % (n, 2*n)
+            if isinstance(action, list) and action[0] == 'jiakong':
+                n = sum(not q.winning and q.player_id != p.player_id for q in self.players)
+                return '加杠成功后由仍在局的%s家各付1分，并补摸一张；可能被抢杠' % n
+        return ''
+
+    def _opponent_read(self):
+        '''Public-information estimate of each opponent: how likely they are
+           to be ready (tenpai) and which of MY hand tiles are dangerous to
+           them. Reuses strategy_defense's threat/danger model — reads no
+           hidden information, so coach mode never leaks opponents' hands.'''
+        if strategy_defense is None:
+            return []
+        p = self.players[self.human]
+        KB = p.kgbase(self.dealer, self.players)
+        cands = _unique(p.hand)
+        out = []
+        for q in self.players:
+            if q.player_id == p.player_id:
+                continue
+            info = {'id': q.player_id, 'winning': q.winning,
+                    'daque': q.daque_color, 'n_melds': len(q.pile),
+                    'n_discards': len(self.dealer.discard_lists[q.player_id])}
+            if q.winning:
+                info['threat'] = 0.0
+                info['hot'] = []
+                out.append(info)
+                continue
+            info['threat'] = round(strategy_defense.threat(q, self.dealer), 2)
+            scored = sorted(
+                ((round(strategy_defense.tile_danger(t, q, self.dealer, KB), 2), t)
+                 for t in cands), key=lambda s: -s[0])
+            info['hot'] = [[t, d] for d, t in scored if d >= 1.5][:3]
+            if len(q.pile) >= 2:
+                suits = set(m[0][0] for m in q.pile)
+                if len(suits) == 1:
+                    info['flush'] = suits.pop()
+            out.append(info)
+        return out
+
+    # -------------------------------------------------------- explanations
+    def hand_math(self):
+        '''Deterministic teaching boundary: own tiles + explicit public fields.
+
+        Never calls strategy, kgbase, state(), opponent hand or dealer.deck.
+        numWl is the existing public wall TOTAL, not future card identities.
+        '''
+        started = time.perf_counter()
+        if self.human is None or self.stage != 'play' or self.pending is None or self.players[self.human].winning:
+            return {'analysis':{'status':'unavailable','errors':['仅在轮到你作决定时提供手牌数学分析']},
+                    'elapsed_ms':round((time.perf_counter()-started)*1000,3)}
+        from utils.hysolx import analyze_visible_hand
+        p = self.players[self.human]
+        public = deepcopy(self.dealer.table)
+        for q in self.players:
+            if q.player_id != p.player_id:
+                public.extend(deepcopy([t for group in q.pile for t in group]))
+        va = self.pending['valid_act']
+        claim = (self.dealer.table[-1] if va == 'hu' else
+                 self.round.jiakong_card if va == 'robkong' else None)
+        allowed = self.pending['allowed'] if self.pending['type'] == 'discard' else []
+        result = analyze_visible_hand(deepcopy(p.hand),deepcopy(p.pile),public,p.daque_color,
+                    allowed_discards=deepcopy(allowed),wall_count=self.dealer.numWl,claim_tile=deepcopy(claim))
+        can_hu = any(o['action'] in ('hu','zimo','robkong') for o in self.pending.get('options',[])
+                     if isinstance(o['action'],str))
+        if (result['status'] == 'ok' and can_hu and not
+                (result['current']['is_complete'] or result['current']['wins_with_claim'])):
+            result = {'status':'unsupported','errors':['规则响应与数学结果存在差异，暂停给出精确结论，需保留局面核对']}
+        return {'analysis':result,'elapsed_ms':round((time.perf_counter()-started)*1000,3),
+                'context':{'game_id':self.game_id,'n_history':len(self.dealer.act_history),
+                    'phase':va,'rules':self.rules,'exchange_occurred':bool(self._exchange_records),
+                    'legal_win_available':can_hu}}
+
+    def _hint_table(self):
+        '''Ranked, human-readable analysis of the current discard choice:
+           per candidate tile the deficiency after discarding it, the
+           availability-weighted count of effective draws (same measure the
+           initial strategy maximizes) and the deal-in danger estimate from
+           strategy_defense (if available).'''
+        p = self.players[self.human]
+        dc = p.daque_color
+        KB = p.kgbase(self.dealer, self.players)
+        Pg = [x[0] for x in p.pile]
+
+        def danger_map(cands):
+            if strategy_defense is None:
+                return {}
+            scored = strategy_defense.danger_of(cands, p, self.dealer,
+                                                self.players, KB)
+            return dict((tuple(t), round(d, 2)) for d, t in scored)
+
+        SUIT = ['条', '万', '筒']
+        SEAT = {1: '下家', 2: '对家', 3: '上家'}
+        opps = [q for q in self.players
+                if q.player_id != p.player_id and not q.winning]
+
+        def safety_notes(t):
+            notes = []
+            if all(t[0] == q.daque_color for q in opps):
+                notes.append('所有对手都缺%s，绝对安全' % SUIT[t[0]])
+                return notes
+            for q in opps:
+                who = SEAT.get(q.player_id, '对手')
+                if t[0] == q.daque_color:
+                    notes.append('%s缺%s，对其安全' % (who, SUIT[t[0]]))
+                elif t in self.dealer.discard_lists[q.player_id]:
+                    notes.append('%s自己打过此牌，较安全' % who)
+            return notes
+
+        daque_tiles = _unique([t for t in p.hand if t[0] == dc])
+        if daque_tiles:
+            dm = danger_map(daque_tiles)
+            rows = [{'tile': t, 'danger': dm.get(tuple(t), 0),
+                     'notes': safety_notes(t)[:3]} for t in daque_tiles]
+            rows.sort(key=lambda r: r['danger'])
+            return {'forced_daque': True, 'rows': rows}
+
+        HD = sorted(p.hand, key=lambda t: (t[0], t[1]))
+        cur = dfncy(HD, Pg, KB, dc)
+        cands = _unique(HD)
+        dm = danger_map(cands)
+        rows = []
+        for t in cands:
+            TX = HD[:]
+            TX.remove(t)
+            after = dfncy(TX, Pg, KB, dc)
+            eff = 0
+            detail = []         # the improving draws left: [[tile, count]...]
+            if after <= cur:
+                for c in range(3):
+                    if c == dc:
+                        continue
+                    for n in range(1, 10):
+                        x = [c, n]
+                        k = c * 9 + n - 1
+                        if x == t or KB[k] <= 0:
+                            continue
+                        T1 = sorted(TX + [x], key=lambda u: (u[0], u[1]))
+                        if dfncy(T1, Pg, KB, dc) == max(0, cur - 1):
+                            eff += KB[k]
+                            detail.append([x, KB[k]])
+            notes = []
+            if after <= cur and (HD.count(t) == 1 and not any(
+                    x != t and x[0] == t[0] and abs(x[1] - t[1]) <= 2
+                    for x in HD)):
+                notes.append('孤张，不成搭子')
+            notes += safety_notes(t)
+            rows.append({'tile': t, 'after': after, 'keeps': after <= cur,
+                         'eff': eff, 'detail': detail,
+                         'danger': dm.get(tuple(t), 0), 'notes': notes[:3]})
+        rows.sort(key=lambda r: (not r['keeps'], -r['eff'], r['danger']))
+        return {'forced_daque': False, 'cur_dfncy': cur, 'rows': rows}
+
+    # -------------------------------------------------------------- state
+    def _deficiency(self, p):
+        if p.daque_color is None or p.winning:
+            return None
+        HD = sorted((t for t in p.hand if t[0] != p.daque_color),
+                    key=lambda t: (t[0], t[1]))
+        Pg = [x[0] for x in p.pile]
+        KB = p.kgbase(self.dealer, self.players)
+        return dfncy(HD, Pg, KB, p.daque_color)
+
+    def state(self):
+        me = self.players[self.human if self.human is not None else 0]
+        hand = sorted(me.hand, key=lambda t: (t[0], t[1]))
+        drawn = me.hand[-1] if len(me.hand) % 3 == 2 else None
+        winners = [p.player_id for p in self.round.winners]
+        n_dec = len(self.decisions)
+        n_agree = sum(1 for d in self.decisions if d['agree'])
+        accepted = [p.player_id for p in self.round.Hu_accept]
+        rob = ({'seat': self.round.player_before_act, 'tile': self.round.jiakong_card,
+                'claims': accepted} if accepted and self.round.valid_act == 'robkong' else None)
+        hu = ({'seat': self.round.player_before_act, 'tile': self.dealer.table[-1],
+               'claims': accepted} if accepted and self.round.valid_act == 'hu' else None)
+        st = {
+            'stage': self.stage,
+            'rules': self.rules,
+            'ai': self.strategy_names[1],
+            'game_id': self.game_id,
+            'wall': len(self.dealer.deck),
+            'table': self.dealer.table,
+            'public_table': project_public_table(self.dealer.act_history, self.dealer.table, rob, hu),
+            'winners': winners,
+            'history': self.dealer.act_history,
+            'daque_suggestion': self.daque_suggestion,
+            'pending': self.pending,
+            'error': self.error,
+            'exchange': {'direction': self.exchange_direction,
+                         'complete': bool(self._exchange_records),
+                         'suggestion': self.choose_exchange(me.hand) if self.stage == 'choose_exchange' else None,
+                         'personal': deepcopy(self._exchange_records.get(me.player_id))},
+            'risk_model': {'kind': 'heuristic', 'calibrated': False,
+                           'description': '危险度和威胁等级是启发式评分，不是点炮概率或听牌概率'},
+            'divergence': {'n': n_dec, 'agree': n_agree},
+            'you': {
+                'id': me.player_id,
+                'hand': hand,
+                'drawn': drawn,
+                'pile': me.pile,
+                'daque': me.daque_color,
+                'score': me.myscore,
+                'winning': me.winning,
+                'hu_way': me.hu_way,
+                'deficiency': self._deficiency(me) if self.stage in ('play', 'over') else None,
+            },
+            'opponents': [],
+        }
+        for p in self.players:
+            if p.player_id == st['you']['id']:
+                continue
+            opp = {
+                'id': p.player_id,
+                'n_hand': len(p.hand),
+                'pile': p.pile,
+                'daque': p.daque_color if self.stage in ('play', 'over') else None,
+                'score': p.myscore,
+                'winning': p.winning,
+                'hu_way': p.hu_way,
+            }
+            if self.stage == 'over':
+                opp['settle'] = _settlement(p)
+            st['opponents'].append(opp)
+        if self.stage == 'over':
+            st['you']['settle'] = _settlement(me)
+            st['decisions'] = [{k: v for k, v in d.items() if k != 'seed'} for d in self.decisions]
+        return deepcopy(st)
+
+
+DAILY_PAR_CACHE = {}
+
+
+def compute_daily_par(seed):
+    '''Score the strongest AI gets playing seat 0 on this exact deal —
+       the "par" a daily-challenge player competes against.'''
+    if seed in DAILY_PAR_CACHE:
+        return DAILY_PAR_CACHE[seed]
+    ai = 'advanced' if 'advanced' in STRATEGIES else 'initial'
+    s = GameSession(seed=seed, strategies=[ai] * 4, human=None)
+    guard = 0
+    while s.stage != 'over' and guard < 2000:
+        if not s.step_once():
+            break
+        guard += 1
+    par = s.players[0].myscore
+    DAILY_PAR_CACHE[seed] = par
+    return par
