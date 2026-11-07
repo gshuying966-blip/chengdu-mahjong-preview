@@ -1,0 +1,509 @@
+{
+  "version": "P1-memory-gate-device-candidate-3",
+  "entry": "webgame/app.html",
+  "runtime": "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
+  "files": {
+    ".nojekyll": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "404.html": {
+      "bytes": 149,
+      "sha256": "3eefc7e88df63af190ad88c18f91f7e81ccdc94fca8699b7e3873b8734f84b8d"
+    },
+    "_headers": {
+      "bytes": 94,
+      "sha256": "2ff102743e119801f66f9d6f5abaca389ec621d870c3e70d078a6769cbc4f345"
+    },
+    "dfncy/block_dfncy.py": {
+      "bytes": 26731,
+      "sha256": "086cf0c84779fb05cc481c40fe258222aa2e5b319e6e156ecd837ff87fb07b33"
+    },
+    "hytreekong.py": {
+      "bytes": 24277,
+      "sha256": "d2fceeb757638f1394b36cb90aff6dc2bcbc9b019af24a9120571b58a0db45ca"
+    },
+    "index.html": {
+      "bytes": 380,
+      "sha256": "78b6131efd99b40a23b0ef84262a5e671ed59eb577f0cb1cd14fbc020126821f"
+    },
+    "license.md": {
+      "bytes": 1062,
+      "sha256": "312c2253ccb27f451e8d32dee781aaf7d5675eca3f7747a3904b8fb98945b505"
+    },
+    "strategy_defense.py": {
+      "bytes": 6405,
+      "sha256": "79484acd78f91186029395a51b398b2618637552d42fd75551236a4df2073e7a"
+    },
+    "strategy_huev.py": {
+      "bytes": 1144,
+      "sha256": "fb50adc3fadf018d8e0c1df12efe53be33c087e589c5f48dfc132119d3aabbad"
+    },
+    "strategy_initial21_7attr.py": {
+      "bytes": 15203,
+      "sha256": "7a8a5c752e8866ce6f883a099b560ba5d94d9a4272891df5fbc602c725e4d387"
+    },
+    "strategyz0614.py": {
+      "bytes": 57634,
+      "sha256": "7c78064c2621437bfb660a7e31a901190c1c5c8a47064e0b33ec39a6a5974056"
+    },
+    "utils/constants.py": {
+      "bytes": 883,
+      "sha256": "35bea754d6283a37e1346fe254dfce2580ee8ef423834d4ead40b63d950d47b5"
+    },
+    "utils/daque.py": {
+      "bytes": 11927,
+      "sha256": "6631bc33362a46ef9878691f9368d3ce0150b55f1ed9a3c761cf1eb8029c81e1"
+    },
+    "utils/hutype.py": {
+      "bytes": 3617,
+      "sha256": "d2eac6144ba3092b3a97b9aa8ca8385af954525c4573f4be4c1a2d918a262f86"
+    },
+    "utils/hysolx.py": {
+      "bytes": 8909,
+      "sha256": "fbed1470753728337965cef62249f320fa11cd86b40f9907cc3abda79221de23"
+    },
+    "utils/pusolx.py": {
+      "bytes": 12703,
+      "sha256": "392409a053ff15a9165e68074ae6b1a936dbfb51e5b45b3219455444e1ddf8f2"
+    },
+    "utils/xzcard.py": {
+      "bytes": 1310,
+      "sha256": "6e0296ef56154f187a146b4103a292147d17e4c5ff5ea2fc400a93f1de63ae79"
+    },
+    "utils/xzscore.py": {
+      "bytes": 15566,
+      "sha256": "65ccea54ae4ad9dc91b9abf6f0274bf1ab2773773cabfd7a9f66d88e8cfa0502"
+    },
+    "utils/xzutils.py": {
+      "bytes": 16103,
+      "sha256": "b35ca2056dcd3abc0320c14a9130bf7efea497aa34fd76e2880e881f53d5a924"
+    },
+    "webgame/app.html": {
+      "bytes": 11355,
+      "sha256": "b954cd1e9275dbbcb38a9e7aae8f76c518f2f5d736d213802af2dd38a27bed32"
+    },
+    "webgame/game.js": {
+      "bytes": 205689,
+      "sha256": "34ecd7efd231d364cd25f58024b8c0fb571615d6e95161d1351ea8b9642d9fc5"
+    },
+    "webgame/game_core.py": {
+      "bytes": 38839,
+      "sha256": "0eec45712ee6f22940a74103cd87c65a3d8c89f870e51aacf16d578d730e61a4"
+    },
+    "webgame/icons/icon-180.png": {
+      "bytes": 1114,
+      "sha256": "9f423a5334b554cb7f7957e0a2f19650e6b70dfe3c281fda5d4d980f9e3c6398"
+    },
+    "webgame/icons/icon-192.png": {
+      "bytes": 1203,
+      "sha256": "83c260e86fc0cd7af1d0499201452a3e643f3b0f8fa3ebd90af8e1853adcbb88"
+    },
+    "webgame/icons/icon-512.png": {
+      "bytes": 3462,
+      "sha256": "84abb8ba81e5515a66676b74d9aaa1c83eaaa6bd6929ad373ed5ff6a82338683"
+    },
+    "webgame/manifest.webmanifest": {
+      "bytes": 754,
+      "sha256": "fdc6cc58308a9bf2620da576ac08072cf3473a6d69ed469f778d69a56d8a9d36"
+    },
+    "webgame/pwa_bridge.py": {
+      "bytes": 2672,
+      "sha256": "c483537b557af5ce2239e77d5f10c4be5a306d573d9aad69bf7b27fd85fe7237"
+    },
+    "webgame/style.css": {
+      "bytes": 34005,
+      "sha256": "67a5736093f444556ed0b0cc4c03e87a5b4abaa239ae221e7a44fa7bbeae21cf"
+    },
+    "webgame/sw.js": {
+      "bytes": 3510,
+      "sha256": "661ca37b723e560b40ecf8ad9a27dd1a1df63b01776c837236256f04b5a0973b"
+    },
+    "webgame/transport_pyodide.js": {
+      "bytes": 5367,
+      "sha256": "5e7fcb169985d599570012eb8ba5c2108eb76ee0c61d5f2c2303fc4e651d6ff3"
+    },
+    "webgame/worker.js": {
+      "bytes": 8823,
+      "sha256": "5ef61caf92a86892e211d087efc1f23b32d073bd2938afcea63292f7ab78a214"
+    },
+    "xzdealer.py": {
+      "bytes": 9948,
+      "sha256": "7879b4f86b40ca09f880a78cb7582a2a44c8ddc33d4144fddd868547dbb56f23"
+    },
+    "xzjudger.py": {
+      "bytes": 4009,
+      "sha256": "0c6c85f97538e650a77a2514fe28d076bdc0a36befaeeeb5882f9898667ae1d3"
+    },
+    "xzplayer.py": {
+      "bytes": 14766,
+      "sha256": "69117fca4b3101f1140bb2e2499280dbf52c153929aebf53f4d2b8b32309377d"
+    },
+    "xzround.py": {
+      "bytes": 32703,
+      "sha256": "11973eae6849d7e305c847e3fb6c3c3ffeec5617e7224f4b8faba94c12e1640f"
+    }
+  },
+  "service_worker_cache_identity": {
+    "algorithm": "sw-cache-inputs-v1",
+    "application_id": "chengdu-mahjong-ai-tutor",
+    "storage_channel": "device_acceptance",
+    "source_sha256": "2a02142fe3fea09c5693bb31cb281a6e50cdb88b2a3ea225ea0c063da017e015",
+    "inputs": {
+      "algorithm": "sw-cache-inputs-v1",
+      "application_id": "chengdu-mahjong-ai-tutor",
+      "storage_channel": "device_acceptance",
+      "app_release": "P1-memory-gate-device-candidate-3",
+      "source_commit": "8a6fe9890dbc61d774f9380e165926be420d4ac4",
+      "source_files": {
+        "license.md": {
+          "bytes": 1062,
+          "sha256": "312c2253ccb27f451e8d32dee781aaf7d5675eca3f7747a3904b8fb98945b505"
+        },
+        "webgame/app.html": {
+          "bytes": 11420,
+          "sha256": "1cfcb4dc9ec5101bc581300c9efd4fee4d24329b5bd5527c2a1a61e16766add3"
+        },
+        "webgame/style.css": {
+          "bytes": 34005,
+          "sha256": "67a5736093f444556ed0b0cc4c03e87a5b4abaa239ae221e7a44fa7bbeae21cf"
+        },
+        "webgame/game.js": {
+          "bytes": 205689,
+          "sha256": "34ecd7efd231d364cd25f58024b8c0fb571615d6e95161d1351ea8b9642d9fc5"
+        },
+        "webgame/transport_pyodide.js": {
+          "bytes": 5367,
+          "sha256": "5e7fcb169985d599570012eb8ba5c2108eb76ee0c61d5f2c2303fc4e651d6ff3"
+        },
+        "webgame/worker.js": {
+          "bytes": 8823,
+          "sha256": "5ef61caf92a86892e211d087efc1f23b32d073bd2938afcea63292f7ab78a214"
+        },
+        "webgame/sw.js": {
+          "bytes": 3315,
+          "sha256": "12e912c8f03ee9f845c5eed00f22d3f5616a98991b142f1092aafbcebc079d0a"
+        },
+        "webgame/manifest.webmanifest": {
+          "bytes": 754,
+          "sha256": "fdc6cc58308a9bf2620da576ac08072cf3473a6d69ed469f778d69a56d8a9d36"
+        },
+        "webgame/icons/icon-180.png": {
+          "bytes": 1114,
+          "sha256": "9f423a5334b554cb7f7957e0a2f19650e6b70dfe3c281fda5d4d980f9e3c6398"
+        },
+        "webgame/icons/icon-192.png": {
+          "bytes": 1203,
+          "sha256": "83c260e86fc0cd7af1d0499201452a3e643f3b0f8fa3ebd90af8e1853adcbb88"
+        },
+        "webgame/icons/icon-512.png": {
+          "bytes": 3462,
+          "sha256": "84abb8ba81e5515a66676b74d9aaa1c83eaaa6bd6929ad373ed5ff6a82338683"
+        },
+        "dfncy/block_dfncy.py": {
+          "bytes": 26731,
+          "sha256": "086cf0c84779fb05cc481c40fe258222aa2e5b319e6e156ecd837ff87fb07b33"
+        },
+        "hytreekong.py": {
+          "bytes": 24277,
+          "sha256": "d2fceeb757638f1394b36cb90aff6dc2bcbc9b019af24a9120571b58a0db45ca"
+        },
+        "strategy_defense.py": {
+          "bytes": 6405,
+          "sha256": "79484acd78f91186029395a51b398b2618637552d42fd75551236a4df2073e7a"
+        },
+        "strategy_huev.py": {
+          "bytes": 1144,
+          "sha256": "fb50adc3fadf018d8e0c1df12efe53be33c087e589c5f48dfc132119d3aabbad"
+        },
+        "strategy_initial21_7attr.py": {
+          "bytes": 15203,
+          "sha256": "7a8a5c752e8866ce6f883a099b560ba5d94d9a4272891df5fbc602c725e4d387"
+        },
+        "strategyz0614.py": {
+          "bytes": 57634,
+          "sha256": "7c78064c2621437bfb660a7e31a901190c1c5c8a47064e0b33ec39a6a5974056"
+        },
+        "utils/constants.py": {
+          "bytes": 883,
+          "sha256": "35bea754d6283a37e1346fe254dfce2580ee8ef423834d4ead40b63d950d47b5"
+        },
+        "utils/daque.py": {
+          "bytes": 11927,
+          "sha256": "6631bc33362a46ef9878691f9368d3ce0150b55f1ed9a3c761cf1eb8029c81e1"
+        },
+        "utils/hutype.py": {
+          "bytes": 3617,
+          "sha256": "d2eac6144ba3092b3a97b9aa8ca8385af954525c4573f4be4c1a2d918a262f86"
+        },
+        "utils/hysolx.py": {
+          "bytes": 8909,
+          "sha256": "fbed1470753728337965cef62249f320fa11cd86b40f9907cc3abda79221de23"
+        },
+        "utils/pusolx.py": {
+          "bytes": 12703,
+          "sha256": "392409a053ff15a9165e68074ae6b1a936dbfb51e5b45b3219455444e1ddf8f2"
+        },
+        "utils/xzcard.py": {
+          "bytes": 1310,
+          "sha256": "6e0296ef56154f187a146b4103a292147d17e4c5ff5ea2fc400a93f1de63ae79"
+        },
+        "utils/xzscore.py": {
+          "bytes": 15566,
+          "sha256": "65ccea54ae4ad9dc91b9abf6f0274bf1ab2773773cabfd7a9f66d88e8cfa0502"
+        },
+        "utils/xzutils.py": {
+          "bytes": 16103,
+          "sha256": "b35ca2056dcd3abc0320c14a9130bf7efea497aa34fd76e2880e881f53d5a924"
+        },
+        "xzdealer.py": {
+          "bytes": 9948,
+          "sha256": "7879b4f86b40ca09f880a78cb7582a2a44c8ddc33d4144fddd868547dbb56f23"
+        },
+        "xzjudger.py": {
+          "bytes": 4009,
+          "sha256": "0c6c85f97538e650a77a2514fe28d076bdc0a36befaeeeb5882f9898667ae1d3"
+        },
+        "xzplayer.py": {
+          "bytes": 14766,
+          "sha256": "69117fca4b3101f1140bb2e2499280dbf52c153929aebf53f4d2b8b32309377d"
+        },
+        "xzround.py": {
+          "bytes": 32703,
+          "sha256": "11973eae6849d7e305c847e3fb6c3c3ffeec5617e7224f4b8faba94c12e1640f"
+        },
+        "webgame/game_core.py": {
+          "bytes": 38839,
+          "sha256": "0eec45712ee6f22940a74103cd87c65a3d8c89f870e51aacf16d578d730e61a4"
+        },
+        "webgame/pwa_bridge.py": {
+          "bytes": 2672,
+          "sha256": "c483537b557af5ce2239e77d5f10c4be5a306d573d9aad69bf7b27fd85fe7237"
+        },
+        "index.html": {
+          "bytes": 380,
+          "sha256": "78b6131efd99b40a23b0ef84262a5e671ed59eb577f0cb1cd14fbc020126821f"
+        },
+        "404.html": {
+          "bytes": 149,
+          "sha256": "3eefc7e88df63af190ad88c18f91f7e81ccdc94fca8699b7e3873b8734f84b8d"
+        },
+        ".nojekyll": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "_headers": {
+          "bytes": 94,
+          "sha256": "2ff102743e119801f66f9d6f5abaca389ec621d870c3e70d078a6769cbc4f345"
+        }
+      },
+      "builder": {
+        "bytes": 8289,
+        "sha256": "11e699b7ad361fdc33c32d5e705bfe8cf44021ac5cd272443672bea33f34783e"
+      }
+    }
+  },
+  "build_identity": {
+    "app_release": "P1-memory-gate-device-candidate-3",
+    "source_commit": "8a6fe9890dbc61d774f9380e165926be420d4ac4",
+    "working_tree_dirty": false,
+    "data_format": "study-record-v2",
+    "backup_format": "mahjong-single-plan-v2",
+    "teaching_evidence_version": "help-evidence-v1",
+    "record_protocol": "p1-record-v1",
+    "formal_freeplay_protocol": "formal-freeplay-baseline-v1",
+    "rules_version": "P0.2-frozen+p04-opening",
+    "ai_version": "P0.5-retained",
+    "math_version": "hand-math-v1",
+    "storage_channel": "device_acceptance",
+    "key_files_sha256": {
+      "dfncy/block_dfncy.py": "086cf0c84779fb05cc481c40fe258222aa2e5b319e6e156ecd837ff87fb07b33",
+      "hytreekong.py": "d2fceeb757638f1394b36cb90aff6dc2bcbc9b019af24a9120571b58a0db45ca",
+      "strategy_defense.py": "79484acd78f91186029395a51b398b2618637552d42fd75551236a4df2073e7a",
+      "strategy_huev.py": "fb50adc3fadf018d8e0c1df12efe53be33c087e589c5f48dfc132119d3aabbad",
+      "strategy_initial21_7attr.py": "7a8a5c752e8866ce6f883a099b560ba5d94d9a4272891df5fbc602c725e4d387",
+      "strategyz0614.py": "7c78064c2621437bfb660a7e31a901190c1c5c8a47064e0b33ec39a6a5974056",
+      "utils/constants.py": "35bea754d6283a37e1346fe254dfce2580ee8ef423834d4ead40b63d950d47b5",
+      "utils/daque.py": "6631bc33362a46ef9878691f9368d3ce0150b55f1ed9a3c761cf1eb8029c81e1",
+      "utils/hutype.py": "d2eac6144ba3092b3a97b9aa8ca8385af954525c4573f4be4c1a2d918a262f86",
+      "utils/hysolx.py": "fbed1470753728337965cef62249f320fa11cd86b40f9907cc3abda79221de23",
+      "utils/pusolx.py": "392409a053ff15a9165e68074ae6b1a936dbfb51e5b45b3219455444e1ddf8f2",
+      "utils/xzcard.py": "6e0296ef56154f187a146b4103a292147d17e4c5ff5ea2fc400a93f1de63ae79",
+      "utils/xzscore.py": "65ccea54ae4ad9dc91b9abf6f0274bf1ab2773773cabfd7a9f66d88e8cfa0502",
+      "utils/xzutils.py": "b35ca2056dcd3abc0320c14a9130bf7efea497aa34fd76e2880e881f53d5a924",
+      "webgame/game.js": "34ecd7efd231d364cd25f58024b8c0fb571615d6e95161d1351ea8b9642d9fc5",
+      "webgame/game_core.py": "0eec45712ee6f22940a74103cd87c65a3d8c89f870e51aacf16d578d730e61a4",
+      "webgame/pwa_bridge.py": "c483537b557af5ce2239e77d5f10c4be5a306d573d9aad69bf7b27fd85fe7237",
+      "webgame/transport_pyodide.js": "5e7fcb169985d599570012eb8ba5c2108eb76ee0c61d5f2c2303fc4e651d6ff3",
+      "webgame/worker.js": "5ef61caf92a86892e211d087efc1f23b32d073bd2938afcea63292f7ab78a214",
+      "xzdealer.py": "7879b4f86b40ca09f880a78cb7582a2a44c8ddc33d4144fddd868547dbb56f23",
+      "xzjudger.py": "0c6c85f97538e650a77a2514fe28d076bdc0a36befaeeeb5882f9898667ae1d3",
+      "xzplayer.py": "69117fca4b3101f1140bb2e2499280dbf52c153929aebf53f4d2b8b32309377d",
+      "xzround.py": "11973eae6849d7e305c847e3fb6c3c3ffeec5617e7224f4b8faba94c12e1640f"
+    },
+    "resource_manifest_sha256": "e6e6b988a4bacc81ae63ee6b4033fcf946e92de031bda6007c2a8bdf70b03182",
+    "formal_approval": {
+      "status": "unapproved"
+    },
+    "service_worker_cache_identity": {
+      "algorithm": "sw-cache-inputs-v1",
+      "application_id": "chengdu-mahjong-ai-tutor",
+      "storage_channel": "device_acceptance",
+      "source_sha256": "2a02142fe3fea09c5693bb31cb281a6e50cdb88b2a3ea225ea0c063da017e015",
+      "inputs": {
+        "algorithm": "sw-cache-inputs-v1",
+        "application_id": "chengdu-mahjong-ai-tutor",
+        "storage_channel": "device_acceptance",
+        "app_release": "P1-memory-gate-device-candidate-3",
+        "source_commit": "8a6fe9890dbc61d774f9380e165926be420d4ac4",
+        "source_files": {
+          "license.md": {
+            "bytes": 1062,
+            "sha256": "312c2253ccb27f451e8d32dee781aaf7d5675eca3f7747a3904b8fb98945b505"
+          },
+          "webgame/app.html": {
+            "bytes": 11420,
+            "sha256": "1cfcb4dc9ec5101bc581300c9efd4fee4d24329b5bd5527c2a1a61e16766add3"
+          },
+          "webgame/style.css": {
+            "bytes": 34005,
+            "sha256": "67a5736093f444556ed0b0cc4c03e87a5b4abaa239ae221e7a44fa7bbeae21cf"
+          },
+          "webgame/game.js": {
+            "bytes": 205689,
+            "sha256": "34ecd7efd231d364cd25f58024b8c0fb571615d6e95161d1351ea8b9642d9fc5"
+          },
+          "webgame/transport_pyodide.js": {
+            "bytes": 5367,
+            "sha256": "5e7fcb169985d599570012eb8ba5c2108eb76ee0c61d5f2c2303fc4e651d6ff3"
+          },
+          "webgame/worker.js": {
+            "bytes": 8823,
+            "sha256": "5ef61caf92a86892e211d087efc1f23b32d073bd2938afcea63292f7ab78a214"
+          },
+          "webgame/sw.js": {
+            "bytes": 3315,
+            "sha256": "12e912c8f03ee9f845c5eed00f22d3f5616a98991b142f1092aafbcebc079d0a"
+          },
+          "webgame/manifest.webmanifest": {
+            "bytes": 754,
+            "sha256": "fdc6cc58308a9bf2620da576ac08072cf3473a6d69ed469f778d69a56d8a9d36"
+          },
+          "webgame/icons/icon-180.png": {
+            "bytes": 1114,
+            "sha256": "9f423a5334b554cb7f7957e0a2f19650e6b70dfe3c281fda5d4d980f9e3c6398"
+          },
+          "webgame/icons/icon-192.png": {
+            "bytes": 1203,
+            "sha256": "83c260e86fc0cd7af1d0499201452a3e643f3b0f8fa3ebd90af8e1853adcbb88"
+          },
+          "webgame/icons/icon-512.png": {
+            "bytes": 3462,
+            "sha256": "84abb8ba81e5515a66676b74d9aaa1c83eaaa6bd6929ad373ed5ff6a82338683"
+          },
+          "dfncy/block_dfncy.py": {
+            "bytes": 26731,
+            "sha256": "086cf0c84779fb05cc481c40fe258222aa2e5b319e6e156ecd837ff87fb07b33"
+          },
+          "hytreekong.py": {
+            "bytes": 24277,
+            "sha256": "d2fceeb757638f1394b36cb90aff6dc2bcbc9b019af24a9120571b58a0db45ca"
+          },
+          "strategy_defense.py": {
+            "bytes": 6405,
+            "sha256": "79484acd78f91186029395a51b398b2618637552d42fd75551236a4df2073e7a"
+          },
+          "strategy_huev.py": {
+            "bytes": 1144,
+            "sha256": "fb50adc3fadf018d8e0c1df12efe53be33c087e589c5f48dfc132119d3aabbad"
+          },
+          "strategy_initial21_7attr.py": {
+            "bytes": 15203,
+            "sha256": "7a8a5c752e8866ce6f883a099b560ba5d94d9a4272891df5fbc602c725e4d387"
+          },
+          "strategyz0614.py": {
+            "bytes": 57634,
+            "sha256": "7c78064c2621437bfb660a7e31a901190c1c5c8a47064e0b33ec39a6a5974056"
+          },
+          "utils/constants.py": {
+            "bytes": 883,
+            "sha256": "35bea754d6283a37e1346fe254dfce2580ee8ef423834d4ead40b63d950d47b5"
+          },
+          "utils/daque.py": {
+            "bytes": 11927,
+            "sha256": "6631bc33362a46ef9878691f9368d3ce0150b55f1ed9a3c761cf1eb8029c81e1"
+          },
+          "utils/hutype.py": {
+            "bytes": 3617,
+            "sha256": "d2eac6144ba3092b3a97b9aa8ca8385af954525c4573f4be4c1a2d918a262f86"
+          },
+          "utils/hysolx.py": {
+            "bytes": 8909,
+            "sha256": "fbed1470753728337965cef62249f320fa11cd86b40f9907cc3abda79221de23"
+          },
+          "utils/pusolx.py": {
+            "bytes": 12703,
+            "sha256": "392409a053ff15a9165e68074ae6b1a936dbfb51e5b45b3219455444e1ddf8f2"
+          },
+          "utils/xzcard.py": {
+            "bytes": 1310,
+            "sha256": "6e0296ef56154f187a146b4103a292147d17e4c5ff5ea2fc400a93f1de63ae79"
+          },
+          "utils/xzscore.py": {
+            "bytes": 15566,
+            "sha256": "65ccea54ae4ad9dc91b9abf6f0274bf1ab2773773cabfd7a9f66d88e8cfa0502"
+          },
+          "utils/xzutils.py": {
+            "bytes": 16103,
+            "sha256": "b35ca2056dcd3abc0320c14a9130bf7efea497aa34fd76e2880e881f53d5a924"
+          },
+          "xzdealer.py": {
+            "bytes": 9948,
+            "sha256": "7879b4f86b40ca09f880a78cb7582a2a44c8ddc33d4144fddd868547dbb56f23"
+          },
+          "xzjudger.py": {
+            "bytes": 4009,
+            "sha256": "0c6c85f97538e650a77a2514fe28d076bdc0a36befaeeeb5882f9898667ae1d3"
+          },
+          "xzplayer.py": {
+            "bytes": 14766,
+            "sha256": "69117fca4b3101f1140bb2e2499280dbf52c153929aebf53f4d2b8b32309377d"
+          },
+          "xzround.py": {
+            "bytes": 32703,
+            "sha256": "11973eae6849d7e305c847e3fb6c3c3ffeec5617e7224f4b8faba94c12e1640f"
+          },
+          "webgame/game_core.py": {
+            "bytes": 38839,
+            "sha256": "0eec45712ee6f22940a74103cd87c65a3d8c89f870e51aacf16d578d730e61a4"
+          },
+          "webgame/pwa_bridge.py": {
+            "bytes": 2672,
+            "sha256": "c483537b557af5ce2239e77d5f10c4be5a306d573d9aad69bf7b27fd85fe7237"
+          },
+          "index.html": {
+            "bytes": 380,
+            "sha256": "78b6131efd99b40a23b0ef84262a5e671ed59eb577f0cb1cd14fbc020126821f"
+          },
+          "404.html": {
+            "bytes": 149,
+            "sha256": "3eefc7e88df63af190ad88c18f91f7e81ccdc94fca8699b7e3873b8734f84b8d"
+          },
+          ".nojekyll": {
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "_headers": {
+            "bytes": 94,
+            "sha256": "2ff102743e119801f66f9d6f5abaca389ec621d870c3e70d078a6769cbc4f345"
+          }
+        },
+        "builder": {
+          "bytes": 8289,
+          "sha256": "11e699b7ad361fdc33c32d5e705bfe8cf44021ac5cd272443672bea33f34783e"
+        }
+      }
+    },
+    "build_id": "ef4cef936ff5942464562ec9423a77e9d4a51f28a2b218d5e2cd9971516cf75b"
+  }
+}
