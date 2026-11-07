@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'">
+<title>iPhone 20局等量容量验收</title><link rel="stylesheet" href="./probe.css">
+<script src="./isolation.js" integrity="sha256-v5DJwNeT1Ro8+t+3TGWNk529qShG1oLRgidzPyXsj5I="></script>
+<script src="./study-backup-core.js" integrity="sha256-rGcndFFVfcQTnGeFJW2Z1jK24oMhWS7AWjaxcR9of88="></script>
+<script defer src="./probe.js" integrity="sha256-8y2Mx5n93BObf4wPNfhp8UzbKY2IypNyunEhSsRApKA="></script>
+</head><body><main>
+<p class="eyebrow">成都麻将 · 独立容量验收</p>
+<h1>虚构20局，测试备份与恢复</h1>
+<p class="notice">只使用独立临时测试库。不会打开原来的3局记录或正式学习库，也不计入水平测量。</p>
+<p>首次仅下载约<strong>2.8MB</strong>压缩夹具；解压及保存的JSON约<strong>60MB</strong>。建议用Wi-Fi，手机预留约500MB空间，全程保持本页前台。单步最多180秒；手机可能卡顿或回收测试页面。</p>
+<div class="actions">
+<button id="generate" disabled>1. 生成20局并下载测试备份</button>
+<label class="file-action" id="chooseLabel" for="file" aria-disabled="true">2. 重新选择JSON，校验并恢复</label>
+<input id="file" type="file" accept=".json,application/json" disabled aria-label="重新选择刚保存的20局测试JSON">
+<a id="download" hidden download="mahjong-synthetic-20-capacity.json">下载虚构备份</a>
+</div>
+<p id="status" role="status" aria-live="polite">正在检查隔离环境……</p>
+<progress id="progress" max="1" value="0" aria-label="当前验收进度"></progress>
+<p id="error" role="alert" hidden></p>
+<dl id="summary">
+<dt>版本</dt><dd>scale-probe-20261107-v1</dd>
+<dt>数据</dt><dd>20个虚构完成局，换三张10局、不换10局</dd>
+<dt>备份、重选与恢复</dt><dd id="stateSummary">尚未执行</dd>
+<dt>关闭Safari再打开</dt><dd id="reopenSummary">待完成恢复后，再关闭Safari并重开同一地址</dd>
+</dl>
+<details><summary>查看核验细节与耗时</summary><pre id="details">尚无结果</pre></details>
+<p class="footnote">第一步生成后，请把JSON保存到iOS“文件”。第二步只选刚保存的虚构JSON，不选个人备份。恢复后关闭Safari，再打开同一地址，页面会实际重读测试库核对数据。若页面中断，重开后会如实标记，不会自动宣称通过。</p>
+<p class="footnote">本页没有麻将引擎或Pyodide；复用已发布版本的v2备份业务代码。Safari内存峰值未量化；固定夹具通过不代表真实20局长期或100局已通过。正式20局仍未批准。</p>
+</main></body></html>
+

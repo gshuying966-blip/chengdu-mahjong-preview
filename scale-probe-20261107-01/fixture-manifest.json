@@ -1,0 +1,23 @@
+{
+  "schema": "scale-probe-fixture-v1",
+  "synthetic_only": true,
+  "automated_test": true,
+  "independent_human_games": 0,
+  "uncompressed_bytes": 59882257,
+  "uncompressed_sha256": "054b2a0c5d02c5588ec6918243b3fd95eff1fa1a294b72375bb01ce4261d45d9",
+  "compressed_bytes": 2804109,
+  "compressed_sha256": "6e9f27a7da27659871c175b785ac95fcd34cb0aea5f9db4b6274c0d12942a099",
+  "content_sha256": "857c1d2eda13d52811f8dcc9b5d60d3a52ee4b0995a8bebd7da1672221dbdf45",
+  "plan_id": "SYNTHETIC-SCALE-20",
+  "counts": {
+    "plans": 1,
+    "games": 20,
+    "decisions": 440,
+    "answers": 0,
+    "events": 14400,
+    "legacy_quarantine": 0,
+    "app_meta": 2820
+  },
+  "exchange_games": 10,
+  "skip_games": 10
+}

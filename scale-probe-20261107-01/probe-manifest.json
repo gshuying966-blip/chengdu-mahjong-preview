@@ -1,0 +1,42 @@
+{
+  "version": "scale-probe-20261107-v1",
+  "source_commit": "8a6fe9890dbc61d774f9380e165926be420d4ac4",
+  "files": {
+    "build-identity.json": {
+      "bytes": 7167,
+      "sha256": "f2ea8461b97b4bb03467c07c7fc41a0b3603bf9ee2b1dea6a44375f01925c338"
+    },
+    "fixture-manifest.json": {
+      "bytes": 726,
+      "sha256": "c12c85f6f633b984eeb18e79563b6375b80fef0adb10bd9ec5f87cb822aae786"
+    },
+    "index.html": {
+      "bytes": 2971,
+      "sha256": "7140fe48e8e89e9c649119a13a0b64223d6bb91bba4a5c1f80616b6e402e80e2"
+    },
+    "isolation.js": {
+      "bytes": 1169,
+      "sha256": "bf90c9c0d793d51a3cfadfb74c658d939dbda92846d682d18227733f25ec8f92"
+    },
+    "license.md": {
+      "bytes": 1062,
+      "sha256": "312c2253ccb27f451e8d32dee781aaf7d5675eca3f7747a3904b8fb98945b505"
+    },
+    "probe.css": {
+      "bytes": 1846,
+      "sha256": "e3b4e789fb1472965906a2e7529771e86744527e84c951749eddb0567447f515"
+    },
+    "probe.js": {
+      "bytes": 14907,
+      "sha256": "f32d8cc799fddc139b7f8c0f35f869f14cdb298d88ca9372ba71214ac440a4a0"
+    },
+    "study-backup-core.js": {
+      "bytes": 150869,
+      "sha256": "ac67277451557dc4139c6785256d99d632b6e28321592ec05a36b1711f687fcf"
+    },
+    "synthetic-20.json.gz": {
+      "bytes": 2804109,
+      "sha256": "6e9f27a7da27659871c175b785ac95fcd34cb0aea5f9db4b6274c0d12942a099"
+    }
+  }
+}
